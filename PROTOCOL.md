@@ -40,8 +40,9 @@ Replies look like `1 200` with `AckNumber = SeqNumber + 1`. They often only arri
 | --- | --- | --- |
 | `POST conn` | none | Handshake; returns a state JSON (includes current brightness) |
 | `POST brightness` | `{"value":0-100}` | Backlight brightness |
-| `POST power` | `{"event":"resume"}` | Wakes the panel |
-| `POST realtimeDisplay` | `{"enable":true}` | Enters realtime mode (host streams frames) |
+| `POST power` | `{"event":"resume"}` / `{"event":"suspend"}` | Wakes / sleeps the panel |
+| `POST realtimeDisplay` | `{"enable":true}` / `{"enable":false}` | Enters / leaves realtime mode (host streams frames) |
+| `POST timeout` | `{"value":seconds}` | Screen-off timer; `0` disables it (shown as `timeout` in the `conn` state) |
 
 `STATE all` is a sysinfo push from host to device, not a query.
 
@@ -61,15 +62,20 @@ In realtime mode each frame is one JPEG, split into 1000-byte blocks. Each block
 ## Working sequence
 
 1. `POST conn`
-2. `POST brightness {"value":80}`
-3. `POST power {"event":"resume"}`
-4. `POST realtimeDisplay {"enable":true}`
-5. Stream JPEG frames
+2. `POST timeout {"value":0}`
+3. `POST realtimeDisplay {"enable":false}`
+4. `POST power {"event":"suspend"}`, then `POST power {"event":"resume"}`
+5. `POST brightness {"value":80}`
+6. `POST realtimeDisplay {"enable":true}`
+7. Stream JPEG frames
+
+Steps 2-4 are a full wake. Without them the panel can stay dark (for example after the PC sleeps) even though every command, including each frame, is accepted with 200.
 
 ## Observations
 
 - The pump scales JPEGs itself: every size tried from 240x240 to 640x480 displayed. The panel is square; its native resolution is unknown.
 - A black screen out of the box was simply `brightness: 0` in the `conn` state.
+- A later black screen came with `timeout: 60` in the `conn` state. Setting it to 0 and power-cycling the panel as above brought the image back.
 - Nothing persists. When the stream stops, brightness falls back to 0 and the image disappears, so something on the host has to keep streaming.
 - Only one process can drive the screen at a time; two writers corrupt each other's frames.
 

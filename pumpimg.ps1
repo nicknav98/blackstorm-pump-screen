@@ -86,7 +86,12 @@ public static class PumpScreen {
             StartReader(fs);
             Send(fs, Request("POST", "conn", null)); Thread.Sleep(400);
             if (brightness >= 0) { Send(fs, Request("POST", "brightness", "{\"value\":" + brightness + "}")); Thread.Sleep(400); }
+            // Full wake: the panel can stay dark after sleep even though every command returns 200.
+            Send(fs, Request("POST", "timeout", "{\"value\":0}")); Thread.Sleep(400);
+            Send(fs, Request("POST", "realtimeDisplay", "{\"enable\":false}")); Thread.Sleep(400);
+            Send(fs, Request("POST", "power", "{\"event\":\"suspend\"}")); Thread.Sleep(1000);
             Send(fs, Request("POST", "power", "{\"event\":\"resume\"}")); Thread.Sleep(1200);
+            if (brightness >= 0) { Send(fs, Request("POST", "brightness", "{\"value\":" + brightness + "}")); Thread.Sleep(400); }
             Send(fs, Request("POST", "realtimeDisplay", "{\"enable\":true}")); Thread.Sleep(600);
             int frames = 0; byte id = 1;
             DateTime end = seconds > 0 ? DateTime.Now.AddSeconds(seconds) : DateTime.MaxValue;   // 0 = run until stopped
